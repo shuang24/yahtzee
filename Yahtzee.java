@@ -44,6 +44,10 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    findWinner();
 	}
 	
+	/*
+	 * The method for the first roll of dice waits for the player to click the roll button, 
+	 * rolls all dice and displays the result
+	 */
 	private void firstRoll(int player) {
 	    String playerName = playerNames[player];                
 	    display.printMessage(playerName + "'s turn. Click \"Roll Dice\" button to roll the dice.");
@@ -51,7 +55,11 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    rollDice(true);
 	    display.displayDice(dice);      
 	}
-		
+	
+	/*
+	 * every other roll, the message differs slightly as it needs to mention that the player has to select which dice to re-roll.
+	 * The method waits for this selection and rolls only the selected dice
+	 */
 	private void furtherRoll() {
 	    display.printMessage("Select the dice you which to re-roll and click \"Roll Again\".");
 	    display.waitForPlayerToSelectDice();
@@ -59,6 +67,10 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    display.displayDice(dice);
 	}
 	
+	/*
+	 * Rolling dice means looping over all dice, checking if they have been selected to be rolled 
+	 * or if all dice should be rolled and assigning random numbers from 1 to 6 to them
+	 */
 	private void rollDice(boolean reRollAll) {
 	    for (int i = 0; i < N_DICE; i++) {
 	        if (reRollAll || display.isDieSelected(i)) 
@@ -66,6 +78,11 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    }
 	}
 	
+	/*
+	 *  this category the score needs to be calculated and displayed at the correct position. 
+	 *  Depending on the category the upper or lower score has to be updated as well as the total. 
+	 *  Furthermore depending if the upper score has reached a given limit its bonus has to be added
+	 */
 	private void updateScore(int player) {
 	    int category;
 	    while (true) {
@@ -91,6 +108,11 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    }
 	    display.updateScorecard(TOTAL, player, totalScore[player]);
 	}
+	
+	/*
+	 * Calculating the score depends on the chosen category, 
+	 * where most of them can use similar functionality
+	 */
 	
 	private int calculateScore(int category) {
 	    int score = 0;
@@ -140,6 +162,10 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    return score;
 	}
 	
+	/*
+	 * the categories of the upper score the score needs simple to add the face values of the dice 
+	 * showing a particular value
+	 */
 	private int calculateSingleValues(int value) {
 	    int result = 0;
 	    for (int i = 0; i < N_DICE; i++) {
@@ -147,6 +173,11 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    }       
 	    return result;
 	}
+	
+	/*
+	 * For a full house the newly created array needs to be looped, 
+	 * to check if one of the values equals 2 and another one 3.
+	 */
 	
 	private int calculateOfAKindValues(int number) {
 	    int result = 0;
@@ -189,6 +220,11 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    if (number == 5) return SCORE_YAHTZEE;
 	    return result;
 	}
+	
+	/*
+	 * finding the winner needs to loop over the array of the total scores 
+	 * and display the players with the highest score
+	 */
 	
 	private void findWinner() {
 	    String winner = "";
