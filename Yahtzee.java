@@ -8,6 +8,9 @@ import acm.io.*;
 import acm.program.*;
 import acm.util.*;
 
+import java.io.*;
+import java.util.*;
+
 public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	
 	public static void main(String[] args) {
