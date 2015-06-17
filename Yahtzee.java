@@ -147,6 +147,65 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    }       
 	    return result;
 	}
+	
+	private int calculateOfAKindValues(int number) {
+	    int result = 0;
+	    int value[] = new int[N_FACES];
+	    boolean isNumber = false;
+	    for (int i = 0; i < N_DICE; i++) {
+	        result += dice[i];
+	        if (++value[dice[i] - 1] >= number) isNumber = true;
+	    }
+	    if (number == FULL_HOUSE) {
+	        boolean found2 = false;
+	        boolean found3 = false;
+	        for (int i = 0; i < N_FACES; i ++) {
+	            if (value[i] == 2) found2 = true;
+	            if (value[i] == 3) found3 = true;               
+	        }
+	        if (found2 && found3) return SCORE_FULL_HOUSE;
+	    } else if ((number == SMALL_STRAIGHT) || (number == LARGE_STRAIGHT)) {
+	        int consecutives = 0;
+	        int maxConsecutives = 0;
+	        int previous = -1;
+	        for (int i = 0; i < N_FACES; i ++) {
+	            if ((value[i] > 0) && (i == previous + 1)) {
+	                consecutives++;
+	                if (consecutives > maxConsecutives) 
+	                    maxConsecutives = consecutives;
+	            } else {
+	                consecutives = 0;
+	            }
+	            previous = i;
+	        }
+	        if ((number == SMALL_STRAIGHT) && (maxConsecutives >= 4)) {
+	            return SCORE_SMALL_STRAIGHT;
+	        } else if ((number == LARGE_STRAIGHT) && (maxConsecutives == 5)) {
+	            return SCORE_LARGE_STRAIGHT;
+	        }
+	 
+	    }
+	    if (!isNumber) return 0;
+	    if (number == 5) return SCORE_YAHTZEE;
+	    return result;
+	}
+	
+	private void findWinner() {
+	    String winner = "";
+	    String next = "";
+	    int winningScore = 0;
+	    for (int player = 0; player < nPlayers; player++) {  
+	        if (totalScore[player] == winningScore) {
+	            winner += next + playerNames[player];
+	        } else if (totalScore[player] > winningScore) {
+	            winner = playerNames[player];
+	            winningScore = totalScore[player];              
+	        } 
+	        next = " and ";
+	    }
+	    display.printMessage("Congratulations, " + winner + ", you won with a total score of " + winningScore + "!");       
+	}
+	
 /* Private instance variables */
 	private int nPlayers;
 	private String[] playerNames;
