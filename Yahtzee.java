@@ -52,6 +52,101 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	    display.displayDice(dice);      
 	}
 		
+	private void furtherRoll() {
+	    display.printMessage("Select the dice you which to re-roll and click \"Roll Again\".");
+	    display.waitForPlayerToSelectDice();
+	    rollDice(false);
+	    display.displayDice(dice);
+	}
+	
+	private void rollDice(boolean reRollAll) {
+	    for (int i = 0; i < N_DICE; i++) {
+	        if (reRollAll || display.isDieSelected(i)) 
+	            dice[i] = rgen.nextInt(1, N_FACES);
+	    }
+	}
+	
+	private void updateScore(int player) {
+	    int category;
+	    while (true) {
+	        display.printMessage("Select a category for this roll.");
+	        category = display.waitForPlayerToSelectCategory();
+	        if (!usedCategories[player][category]) break;           
+	    }
+	    usedCategories[player][category] = true;
+	 
+	    int score = calculateScore(category);
+	    display.updateScorecard(category, player, score);
+	    if (category < UPPER_SCORE) {
+	        upperScore[player] += score;
+	        display.updateScorecard(UPPER_SCORE, player, upperScore[player]);
+	    } else {
+	        lowerScore[player] += score;
+	        display.updateScorecard(LOWER_SCORE, player, lowerScore[player]);
+	    }
+	    totalScore[player] = upperScore[player] + lowerScore[player];
+	    if (upperScore[player] >= SCORE_UPPER_BONUS_LIMIT) {
+	        display.updateScorecard(UPPER_BONUS, player, SCORE_UPPER_BONUS);
+	        totalScore[player] += SCORE_UPPER_BONUS;
+	    }
+	    display.updateScorecard(TOTAL, player, totalScore[player]);
+	}
+	
+	private int calculateScore(int category) {
+	    int score = 0;
+	    switch (category) {
+	    case ONES: 
+	        score = calculateSingleValues(1);
+	        break;
+	    case TWOS: 
+	        score = calculateSingleValues(2);
+	        break;
+	    case THREES: 
+	        score = calculateSingleValues(3);
+	        break;
+	    case FOURS: 
+	        score = calculateSingleValues(4);
+	        break;
+	    case FIVES: 
+	        score = calculateSingleValues(5);
+	        break;
+	    case SIXES:
+	        score = calculateSingleValues(6);
+	        break;
+	    case THREE_OF_A_KIND:
+	        score = calculateOfAKindValues(3);
+	        break;
+	    case FOUR_OF_A_KIND:
+	        score = calculateOfAKindValues(4);
+	        break;
+	    case YAHTZEE:
+	        score = calculateOfAKindValues(5);
+	        break;
+	    case CHANCE:
+	        score = calculateOfAKindValues(0);
+	        break;
+	    case FULL_HOUSE:
+	        score = calculateOfAKindValues(FULL_HOUSE);
+	        break;
+	    case SMALL_STRAIGHT:
+	        score = calculateOfAKindValues(SMALL_STRAIGHT);
+	        break;
+	    case LARGE_STRAIGHT:
+	        score = calculateOfAKindValues(LARGE_STRAIGHT);
+	        break;          
+	    default:
+	        break;
+	    }
+	    return score;
+	}
+	
+	private int calculateSingleValues(int value) {
+	    int result = 0;
+	    for (int i = 0; i < N_DICE; i++) {
+	        if (dice[i] == value) result += value;
+	    }       
+	    return result;
+	}
 /* Private instance variables */
 	private int nPlayers;
 	private String[] playerNames;
