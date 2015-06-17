@@ -3,15 +3,23 @@
  * ------------------
  * This program will eventually play the Yahtzee game.
  */
-
+ 
 import acm.io.*;
 import acm.program.*;
 import acm.util.*;
-
-import java.io.*;
 import java.util.*;
-
+ 
 public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
+	
+	/* Private instance variables */
+	private int nPlayers; //number of players
+	private String[] playerNames; //an array of Player names
+	private YahtzeeDisplay display;
+	private RandomGenerator rgen = new RandomGenerator(); //random number generator
+	private int[] dieResults = new int [N_DICE]; //stores the most recently rolled dice numbers
+	private int[][] categoryScores; //stores the score for each category for each player
+	private int category; //selected category
+	private int[][] selectedCategories; //stores the already selected categories
 	
 	public static void main(String[] args) {
 		new Yahtzee().start(args);
@@ -20,250 +28,269 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	public void run() {
 		IODialog dialog = getDialog();
 		nPlayers = dialog.readInt("Enter number of players");
+		while(true) {
+			if(nPlayers <= MAX_PLAYERS) break;
+			nPlayers = dialog.readInt("You can only enter up to " + MAX_PLAYERS +" number of players. Enter number of players");
+		}
 		playerNames = new String[nPlayers];
+		categoryScores =  new int [nPlayers + 1][N_CATEGORIES+1];
+		selectedCategories = new int[nPlayers+1][N_CATEGORIES+1];
 		for (int i = 1; i <= nPlayers; i++) {
 			playerNames[i - 1] = dialog.readLine("Enter name for player " + i);
 		}
 		display = new YahtzeeDisplay(getGCanvas(), playerNames);
 		playGame();
 	}
-
+ 
 	private void playGame() {
-		/* You fill this in */
-		usedCategories = new boolean[nPlayers][N_CATEGORIES];
-	    upperScore = new int[nPlayers];
-	    lowerScore = new int[nPlayers];
-	    totalScore = new int[nPlayers];
-	 
-	    for (int round = 0; round < N_SCORING_CATEGORIES; round++) {
-	        for (int player = 0; player < nPlayers; player++) {  
-	            firstRoll(player);
-	            for (int roll = 1; roll < N_ROLLS; roll++) {                 
-	                furtherRoll();
-	            }
-	            updateScore(player);
-	        }
-	    }
-	    findWinner();
+		for(int i = 0; i < N_SCORING_CATEGORIES; i++) {
+			for(int j=1; j <= nPlayers; j++) {
+				initializeFirstRoll(j);
+				secondAndThirdRoll(j);
+				selectCategory(j);
+			}
+		}
+		calculateResults();
+		calculateWinner();
+	}
+ 
+	
+	/* In the beginning of a players turn, 
+	 * the player clicks on "Roll Dice", 
+	 * the Dice results are displayed and 
+	 * stored in the diceResults array */
+	private void initializeFirstRoll(int playerNumber) {
+		for(int i = 0; i < N_DICE; i++) {
+			int dieRoll = rgen.nextInt(1,6);
+			dieResults[i] = dieRoll;
+		}
+		display.printMessage(playerNames[playerNumber - 1] + "'s turn! Click the " + "\"Roll Dice\" " + "button to roll the dice.");
+		display.waitForPlayerToClickRoll(playerNumber);
+		display.displayDice(dieResults);
 	}
 	
-	/*
-	 * The method for the first roll of dice waits for the player to click the roll button, 
-	 * rolls all dice and displays the result
+	/* For the second and third roll, 
+	 * the player selects the dice he or she wants to re-roll, 
+	 * the selected dice are re-rolled, and the new 
+	 * dice values are displayed and stored in the diceResults array */
+	private void secondAndThirdRoll(int playerNumber) {
+		for (int i = 0; i < 2; i++) {
+			display.printMessage("Select the dice you wish to re-roll and click " + "\"Roll Again\"");
+			display.waitForPlayerToSelectDice();
+			for(int j = 0; j < N_DICE; j++) {
+				if(display.isDieSelected(j) == true) {
+					int dieRoll = rgen.nextInt(1,6);
+					dieResults[j] = dieRoll;
+				}
+			}
+			display.displayDice(dieResults);
+		}
+	}
+ 
+	/* Pre-condition: The player has rolled the dice three times. 
+	 * The player selects the category for the dice. 
+	 * The player cannot select a category that he/she already chose in a previous turn.*/
+	private void selectCategory(int playerNumber) {
+		while(true) {
+			display.printMessage("Select a category for this roll");
+			category = display.waitForPlayerToSelectCategory();
+			if(selectedCategories[playerNumber][category] == 0) {
+				calculateCategoryScore(playerNumber);
+				break;
+			}
+		}	
+	}
+	
+	/* Pre-condition: The user selected a category he/she has not previously selected.
+	 * Assigns 1 to the selectedCategories array to keep track of selected categories. 
+	 * Checks to see if the selected category matches the dice configuration, 
+	 * and calculates the score. If it does not match, assigns the score of 0. 
+	 * Post-condition: Shows the score category and total score in the scorecard. 
 	 */
-	private void firstRoll(int player) {
-	    String playerName = playerNames[player];                
-	    display.printMessage(playerName + "'s turn. Click \"Roll Dice\" button to roll the dice.");
-	    display.waitForPlayerToClickRoll(player);
-	    rollDice(true);
-	    display.displayDice(dice);      
+	private void calculateCategoryScore(int playerNumber) {
+		selectedCategories[playerNumber][category] = 1;
+		int totalScore;
+		if(checkCategory(dieResults, category) == true) {
+			setCategoryScore(playerNumber, category);
+			int score = categoryScores[playerNumber][category];
+			display.updateScorecard(category, playerNumber, score);
+			calculateTotalScores(playerNumber);
+			totalScore = categoryScores[playerNumber][TOTAL];
+			display.updateScorecard(TOTAL, playerNumber, totalScore);
+			}
+		else {
+			categoryScores[playerNumber][category] = 0;
+			display.updateScorecard(category, playerNumber, 0);
+			calculateTotalScores(playerNumber);
+			totalScore = categoryScores[playerNumber][TOTAL];
+			display.updateScorecard(TOTAL, playerNumber, totalScore);
+		}
 	}
 	
-	/*
-	 * every other roll, the message differs slightly as it needs to mention that the player has to select which dice to re-roll.
-	 * The method waits for this selection and rolls only the selected dice
-	 */
-	private void furtherRoll() {
-	    display.printMessage("Select the dice you which to re-roll and click \"Roll Again\".");
-	    display.waitForPlayerToSelectDice();
-	    rollDice(false);
-	    display.displayDice(dice);
+	/*sets the score in the categoryScores matrix for each player 
+	based on the scoring category they chose after rolling the dice*/ 
+	private void setCategoryScore(int playerNumber, int category) {
+		int score = 0; 
+		if(category >= ONES && category <= SIXES) {
+			for(int i = 0; i < N_DICE; i++) {
+				 if(dieResults[i] == category) {
+					 score += category;
+				 }
+			 }
+		}
+		else if(category == THREE_OF_A_KIND || category == FOUR_OF_A_KIND || category == CHANCE) {
+			for(int i = 0; i<N_DICE; i++) {
+				score += dieResults[i];
+			}
+		}
+		else if(category == FULL_HOUSE) {
+			score = 25;
+		}
+		else if(category == SMALL_STRAIGHT) {
+			score = 30;
+		}
+		else if(category == LARGE_STRAIGHT) {
+			score = 40;
+		}
+		else if(category == YAHTZEE) {
+			score = 50;
+		}
+		categoryScores[playerNumber][category] = score;
 	}
 	
-	/*
-	 * Rolling dice means looping over all dice, checking if they have been selected to be rolled 
-	 * or if all dice should be rolled and assigning random numbers from 1 to 6 to them
-	 */
-	private void rollDice(boolean reRollAll) {
-	    for (int i = 0; i < N_DICE; i++) {
-	        if (reRollAll || display.isDieSelected(i)) 
-	            dice[i] = rgen.nextInt(1, N_FACES);
-	    }
+	
+	/*sets the total scores for each player */
+	private void calculateTotalScores(int playerNumber) {
+		int upperScore = 0;
+		int lowerScore = 0;
+		int totalScore = 0;
+		for(int i = ONES; i <= SIXES; i++) {
+			upperScore += categoryScores[playerNumber][i];
+			}
+		for(int i = THREE_OF_A_KIND; i <= CHANCE; i++) {
+			lowerScore += categoryScores[playerNumber][i];
+			}
+		totalScore = upperScore + lowerScore; 
+		categoryScores[playerNumber][UPPER_SCORE] = upperScore; 
+		categoryScores[playerNumber][LOWER_SCORE] = lowerScore;
+		categoryScores[playerNumber][TOTAL] = totalScore; 
 	}
 	
-	/*
-	 *  this category the score needs to be calculated and displayed at the correct position. 
-	 *  Depending on the category the upper or lower score has to be updated as well as the total. 
-	 *  Furthermore depending if the upper score has reached a given limit its bonus has to be added
-	 */
-	private void updateScore(int player) {
-	    int category;
-	    while (true) {
-	        display.printMessage("Select a category for this roll.");
-	        category = display.waitForPlayerToSelectCategory();
-	        if (!usedCategories[player][category]) break;           
-	    }
-	    usedCategories[player][category] = true;
-	 
-	    int score = calculateScore(category);
-	    display.updateScorecard(category, player, score);
-	    if (category < UPPER_SCORE) {
-	        upperScore[player] += score;
-	        display.updateScorecard(UPPER_SCORE, player, upperScore[player]);
-	    } else {
-	        lowerScore[player] += score;
-	        display.updateScorecard(LOWER_SCORE, player, lowerScore[player]);
-	    }
-	    totalScore[player] = upperScore[player] + lowerScore[player];
-	    if (upperScore[player] >= SCORE_UPPER_BONUS_LIMIT) {
-	        display.updateScorecard(UPPER_BONUS, player, SCORE_UPPER_BONUS);
-	        totalScore[player] += SCORE_UPPER_BONUS;
-	    }
-	    display.updateScorecard(TOTAL, player, totalScore[player]);
+	/* Pre-condition: All players have completed the game. 
+	 * Calculates and displays the Upper Score, Upper Bonus, and LowerScore */
+	private void calculateResults() {
+		for(int i = 1; i <= nPlayers; i++) {
+			display.updateScorecard(UPPER_SCORE, i, categoryScores[i][UPPER_SCORE]);
+			display.updateScorecard(LOWER_SCORE, i, categoryScores[i][LOWER_SCORE]);
+			if(categoryScores[i][UPPER_SCORE] >= 63) {
+				categoryScores[i][UPPER_BONUS] = 35;
+			}
+			display.updateScorecard(UPPER_BONUS, i, categoryScores[i][UPPER_BONUS]);
+			categoryScores[i][TOTAL] = categoryScores[i][TOTAL] + categoryScores[i][UPPER_BONUS];
+			display.updateScorecard(TOTAL, i, categoryScores[i][TOTAL]);
+		}
 	}
 	
-	/*
-	 * Calculating the score depends on the chosen category, 
-	 * where most of them can use similar functionality
-	 */
-	
-	private int calculateScore(int category) {
-	    int score = 0;
-	    switch (category) {
-	    case ONES: 
-	        score = calculateSingleValues(1);
-	        break;
-	    case TWOS: 
-	        score = calculateSingleValues(2);
-	        break;
-	    case THREES: 
-	        score = calculateSingleValues(3);
-	        break;
-	    case FOURS: 
-	        score = calculateSingleValues(4);
-	        break;
-	    case FIVES: 
-	        score = calculateSingleValues(5);
-	        break;
-	    case SIXES:
-	        score = calculateSingleValues(6);
-	        break;
-	    case THREE_OF_A_KIND:
-	        score = calculateOfAKindValues(3);
-	        break;
-	    case FOUR_OF_A_KIND:
-	        score = calculateOfAKindValues(4);
-	        break;
-	    case YAHTZEE:
-	        score = calculateOfAKindValues(5);
-	        break;
-	    case CHANCE:
-	        score = calculateOfAKindValues(0);
-	        break;
-	    case FULL_HOUSE:
-	        score = calculateOfAKindValues(FULL_HOUSE);
-	        break;
-	    case SMALL_STRAIGHT:
-	        score = calculateOfAKindValues(SMALL_STRAIGHT);
-	        break;
-	    case LARGE_STRAIGHT:
-	        score = calculateOfAKindValues(LARGE_STRAIGHT);
-	        break;          
-	    default:
-	        break;
-	    }
-	    return score;
+	/* Pre-condition: The game has ended, and all the final scores have been added up. 
+	 * Calculates which player has the highest score and what the highest score is 
+	 * and prints that information in a message at the very end of the game.*/
+	private void calculateWinner() {
+		int winningScore = 0;
+		int winningPlayerNumber = 0;
+		for(int i = 1; i<=nPlayers; i++) {
+			int x = categoryScores[i][TOTAL];
+			if( x > winningScore) {
+				winningScore = x;
+				winningPlayerNumber = i - 1;
+			}
+		}
+		display.printMessage("Congratulations, " + playerNames[winningPlayerNumber] + ", you're the winner with a total score of " + winningScore + "!");
+	}
+ 
+	/* Pre-condition: The player has finished rolling the dice and selects a category. 
+	 * This method returns true if the selected category matches 
+	 * to the actual category correctly, and false if it does not match. */
+	private boolean checkCategory(int[] dice, int category) {
+		boolean categoryMatch = false;
+		if(category >= ONES && category <= SIXES || category == CHANCE) {
+			categoryMatch = true;
+		}
+		else {
+			
+			//creates an array for each possible dice value (1-6)
+			ArrayList <Integer> ones = new ArrayList<Integer>();  
+			ArrayList <Integer> twos = new ArrayList<Integer>(); 
+			ArrayList <Integer> threes = new ArrayList<Integer>(); 
+			ArrayList <Integer> fours = new ArrayList<Integer>(); 
+			ArrayList <Integer> fives = new ArrayList<Integer>(); 
+			ArrayList <Integer> sixes = new ArrayList<Integer>();
+			
+			/*goes through each rolled die and puts 1 as a place-holder into the appropriate ArrayList
+			* e.g. if the first die value is 1, then 1 is added to the ones ArrayList or
+			* if the second die value is 5, then 1 is added to the fives ArrayList*/
+			for(int i = 0; i < N_DICE; i++) {
+				if(dice[i] == 1) {
+					ones.add(1);
+				}
+				else if(dice[i] == 2) {
+					twos.add(1);
+				}
+				else if(dice[i] == 3) {
+					threes.add(1);
+				}
+				else if(dice[i] == 4) {
+					fours.add(1);
+				}
+				else if(dice[i] == 5) {
+					fives.add(1);
+				}
+				else if(dice[i] == 6) {
+					sixes.add(1);
+				}
+			}
+			if(category == THREE_OF_A_KIND) {
+				if(ones.size() >= 3 || twos.size() >= 3 || threes.size() >= 3 || fours.size() >= 3 || fives.size() >= 3 || sixes.size() >= 3) {
+					categoryMatch = true;
+				}
+			}	
+			else if(category == FOUR_OF_A_KIND) { 
+				if(ones.size() >= 4 || twos.size() >= 4 || threes.size() >= 4 || fours.size() >= 4 || fives.size() >= 4 || sixes.size() >= 4) {
+					categoryMatch = true;
+				}
+			}
+			else if(category == YAHTZEE) {
+				if(ones.size() == 5 || twos.size() == 5 || threes.size() == 5 || fours.size() == 5 || fives.size() == 5 || sixes.size() == 5) {
+					categoryMatch = true;
+				}
+			}
+			else if(category == FULL_HOUSE) {
+				if(ones.size() == 3 || twos.size() == 3 || threes.size() == 3 || fours.size() == 3 || fives.size() == 3 || sixes.size() == 3) {
+					if(ones.size() == 2 || twos.size() == 2 || threes.size() == 2 || fours.size() == 2 || fives.size() == 2 || sixes.size() == 2) {
+						categoryMatch = true;
+					}
+				}
+			}	
+			else if(category == LARGE_STRAIGHT) { 
+				if(ones.size() == 1 && twos.size() == 1 && threes.size() == 1 && fours.size() == 1 && fives.size() == 1){
+					categoryMatch = true;
+				}
+				else if(twos.size() == 1 && threes.size() == 1 && fours.size() == 1 && fives.size() == 1 && sixes.size() == 1) {
+					categoryMatch = true;
+				}
+			}
+			else if(category == SMALL_STRAIGHT) { 
+				if(ones.size() >= 1 && twos.size() >= 1 && threes.size() >= 1 && fours.size() >= 1) {
+					categoryMatch = true;
+				}
+				else if(twos.size() >= 1 && threes.size() >= 1 && fours.size() >= 1 && fives.size() >= 1) {
+					categoryMatch = true;
+				}
+				else if(threes.size() >= 1 && fours.size() >= 1 && fives.size() >= 1 && sixes.size() >= 1) {
+					categoryMatch = true;
+				}
+			}
+		}
+		return categoryMatch;
 	}
 	
-	/*
-	 * the categories of the upper score the score needs simple to add the face values of the dice 
-	 * showing a particular value
-	 */
-	private int calculateSingleValues(int value) {
-	    int result = 0;
-	    for (int i = 0; i < N_DICE; i++) {
-	        if (dice[i] == value) result += value;
-	    }       
-	    return result;
-	}
-	
-	/*
-	 * For a full house the newly created array needs to be looped, 
-	 * to check if one of the values equals 2 and another one 3.
-	 */
-	
-	private int calculateOfAKindValues(int number) {
-	    int result = 0;
-	    int value[] = new int[N_FACES];
-	    boolean isNumber = false;
-	    for (int i = 0; i < N_DICE; i++) {
-	        result += dice[i];
-	        if (++value[dice[i] - 1] >= number) isNumber = true;
-	    }
-	    if (number == FULL_HOUSE) {
-	        boolean found2 = false;
-	        boolean found3 = false;
-	        for (int i = 0; i < N_FACES; i ++) {
-	            if (value[i] == 2) found2 = true;
-	            if (value[i] == 3) found3 = true;               
-	        }
-	        if (found2 && found3) return SCORE_FULL_HOUSE;
-	    } else if ((number == SMALL_STRAIGHT) || (number == LARGE_STRAIGHT)) {
-	        int consecutives = 0;
-	        int maxConsecutives = 0;
-	        int previous = -1;
-	        for (int i = 0; i < N_FACES; i ++) {
-	            if ((value[i] > 0) && (i == previous + 1)) {
-	                consecutives++;
-	                if (consecutives > maxConsecutives) 
-	                    maxConsecutives = consecutives;
-	            } else {
-	                consecutives = 0;
-	            }
-	            previous = i;
-	        }
-	        if ((number == SMALL_STRAIGHT) && (maxConsecutives >= 4)) {
-	            return SCORE_SMALL_STRAIGHT;
-	        } else if ((number == LARGE_STRAIGHT) && (maxConsecutives == 5)) {
-	            return SCORE_LARGE_STRAIGHT;
-	        }
-	 
-	    }
-	    if (!isNumber) return 0;
-	    if (number == 5) return SCORE_YAHTZEE;
-	    return result;
-	}
-	
-	/*
-	 * finding the winner needs to loop over the array of the total scores 
-	 * and display the players with the highest score
-	 */
-	
-	private void findWinner() {
-	    String winner = "";
-	    String next = "";
-	    int winningScore = 0;
-	    for (int player = 0; player < nPlayers; player++) {  
-	        if (totalScore[player] == winningScore) {
-	            winner += next + playerNames[player];
-	        } else if (totalScore[player] > winningScore) {
-	            winner = playerNames[player];
-	            winningScore = totalScore[player];              
-	        } 
-	        next = " and ";
-	    }
-	    display.printMessage("Congratulations, " + winner + ", you won with a total score of " + winningScore + "!");       
-	}
-	
-/* Private instance variables */
-	private int nPlayers;
-	private String[] playerNames;
-	private YahtzeeDisplay display;
-	private RandomGenerator rgen = new RandomGenerator();
-	private int[] dice = new int[N_DICE];
-	private boolean[][] usedCategories;
-	private int[] upperScore;
-	private int[] lowerScore;
-	private int[] totalScore;
-	
-	/* constant value */
-	private static final int N_ROLLS = 3;
-	private static final int N_FACES = 6;
-	private static final int SCORE_FULL_HOUSE = 25;
-	private static final int SCORE_SMALL_STRAIGHT = 30;
-	private static final int SCORE_LARGE_STRAIGHT = 40;
-	private static final int SCORE_YAHTZEE = 50;
-	private static final int SCORE_UPPER_BONUS_LIMIT = 63;
-	private static final int SCORE_UPPER_BONUS = 35;
-
 }
