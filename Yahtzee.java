@@ -28,11 +28,34 @@ public class Yahtzee extends GraphicsProgram implements YahtzeeConstants {
 	private void playGame() {
 		/* You fill this in */
 	}
+	
+	private void firstRoll(int player) {
+	    String playerName = playerNames[player];                
+	    display.printMessage(playerName + "'s turn. Click \"Roll Dice\" button to roll the dice.");
+	    display.waitForPlayerToClickRoll(player);
+	    rollDice(true);
+	    display.displayDice(dice);      
+	}
 		
 /* Private instance variables */
 	private int nPlayers;
 	private String[] playerNames;
 	private YahtzeeDisplay display;
 	private RandomGenerator rgen = new RandomGenerator();
+	private int[] dice = new int[N_DICE];
+	private boolean[][] usedCategories;
+	private int[] upperScore;
+	private int[] lowerScore;
+	private int[] totalScore;
+	
+	/* constant value */
+	private static final int N_ROLLS = 3;
+	private static final int N_FACES = 6;
+	private static final int SCORE_FULL_HOUSE = 25;
+	private static final int SCORE_SMALL_STRAIGHT = 30;
+	private static final int SCORE_LARGE_STRAIGHT = 40;
+	private static final int SCORE_YAHTZEE = 50;
+	private static final int SCORE_UPPER_BONUS_LIMIT = 63;
+	private static final int SCORE_UPPER_BONUS = 35;
 
 }
